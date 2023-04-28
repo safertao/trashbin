@@ -1,11 +1,11 @@
 CC = gcc
-CFLAGS = -fPIC --shared -W -std=c11 -pedantic
+CFLAGS = -fpic -shared -W -Werror -std=c11 -pedantic 
 
 .PHONY: clean 
 
 all: unlink
 	
-unlink: unlink.c makefile
+unlink: unlink.c
 	$(CC) $(CFLAGS) unlink.c -o unlink.so
 	
 clean:
