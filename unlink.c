@@ -9,7 +9,7 @@
 
 int unlink(const char *pathname) 
 {
-     char *new_path = calloc(MAX_PATH_LEN, sizeof(char));
+    char *new_path = calloc(MAX_PATH_LEN, sizeof(char));
     char *home = getenv("HOME");
     if(!home)
     {
