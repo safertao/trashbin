@@ -1,11 +1,9 @@
-# TRASHBIN
+Программа для перемещения файлов в корзину, вместо их безвозвратного удаления
 
-### Программа для перемещения файлов в корзину, вместо их безвозвратного удаления
+Использование:
 
-### Quick start
-
-```sh
 make
-LD_PRELOAD=./trash.so rm <filename>
-``` 
-filename - путь до удаляемого файла
+
+LD_PRELOAD=./unlink.so rm <filepath>        // для вызова unlinkat(2)
+
+LD_PRELOAD=./unlink.so unlink <filepath>    // для вызова unlink(2)

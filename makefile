@@ -1,12 +1,17 @@
 CC = gcc
 CFLAGS = -fpic -shared -W -Werror -std=c11 -pedantic 
 
+DIR = ./build
+SRC = ./src
+prog = $(DIR)/unlink.so
+code = $(SRC)/unlink.c
+
 .PHONY: clean 
 
-all: unlink
+all: $(prog)
 	
-unlink: unlink.c
-	$(CC) $(CFLAGS) unlink.c -o unlink.so
+$(prog): $(code)
+	$(CC) $(CFLAGS) $(code) -o $(prog)
 	
 clean:
-	rm -f unlink.so
+	rm -f $(prog)
