@@ -4,6 +4,6 @@
 
 make
 
-LD_PRELOAD=./unlink.so rm <filepath>        // для вызова unlinkat(2)
+LD_PRELOAD=./build/unlink.so rm <filepath>        // для вызова unlinkat(2)
 
-LD_PRELOAD=./unlink.so unlink <filepath>    // для вызова unlink(2)
+LD_PRELOAD=./build/unlink.so unlink <filepath>    // для вызова unlink(2)
