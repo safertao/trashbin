@@ -15,7 +15,7 @@ int unlink(const char *pathname)
     char *home = getenv("HOME");
     if(!home)
     {
-        fprintf(stderr, "ERROR: could not get home environment\n");
+        fprintf(stderr, "ERROR: can't get home environment\n");
         exit(1);
     }
     sprintf(new_path, "%s/trash", home);
@@ -49,8 +49,8 @@ int unlink(const char *pathname)
         fprintf(stderr, "ERROD: %s can't be opened/created\n");
         exit(1);
     }
-    fprintf(log, "%s was deleted by %s syscall on %s", pathname, __func__, asctime(timeinfo));  
-    printf("%s was succesfully deleted by %s syscall\n", pathname, __func__);
+    fprintf(log, "%s was moved to %s/trash by %s syscall on %s", pathname, 	home, __func__, asctime(timeinfo)); 
+	printf("%s was succesfully moved %s/trash by %s syscall\n",	pathname, home, __func__);
     return 0;
 }
 
@@ -60,10 +60,10 @@ int unlinkat(int dirfd, const char *pathname, int flags)
     char *home = getenv("HOME");
     if(!home)
     {
-        fprintf(stderr, "ERROR: could not get home environment\n");
+        fprintf(stderr, "ERROR: can't get home environment\n");
         exit(1);
     }
-    sprintf(new_path, "%s/trash", home);
+        sprintf(new_path, "%s/trash", home);
     mkdir(new_path, 0755);                       // если каталог корзины существует, ничего не делать 
     int len = strlen(pathname);
     int index = 0;
@@ -94,7 +94,7 @@ int unlinkat(int dirfd, const char *pathname, int flags)
         fprintf(stderr, "ERROD: %s can't be opened/created\n");
         exit(1);
     }
-    fprintf(log, "%s was deleted by %s syscall on %s", pathname, __func__, asctime(timeinfo));  
-    printf("%s was succesfully deleted by %s syscall\n", pathname, __func__);
+    fprintf(log, "%s was moved to %s/trash by %s syscall on %s", pathname, 	home, __func__, asctime(timeinfo)); 
+	printf("%s was succesfully moved %s/trash by %s syscall\n",	pathname, home, __func__);
     return 0;
 }       
