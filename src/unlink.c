@@ -50,6 +50,7 @@ int unlink(const char *pathname)
         exit(1);
     }
     fprintf(log, "%s was deleted by %s syscall on %s", pathname, __func__, asctime(timeinfo));  
+    printf("%s was succesfully deleted by %s syscall\n", pathname, __func__);
     return 0;
 }
 
@@ -94,5 +95,6 @@ int unlinkat(int dirfd, const char *pathname, int flags)
         exit(1);
     }
     fprintf(log, "%s was deleted by %s syscall on %s", pathname, __func__, asctime(timeinfo));  
+    printf("%s was succesfully deleted by %s syscall\n", pathname, __func__);
     return 0;
 }       
