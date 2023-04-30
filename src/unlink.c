@@ -49,7 +49,7 @@ int unlink(const char *pathname)
         fprintf(stderr, "ERROD: %s can't be opened/created\n");
         exit(1);
     }
-    fprintf(log, "%s was deleted on %s", pathname, asctime(timeinfo));  
+    fprintf(log, "%s was deleted by %s syscall on %s", pathname, __func__, asctime(timeinfo));  
     return 0;
 }
 
@@ -93,6 +93,6 @@ int unlinkat(int dirfd, const char *pathname, int flags)
         fprintf(stderr, "ERROD: %s can't be opened/created\n");
         exit(1);
     }
-    fprintf(log, "%s was deleted on %s", pathname, asctime(timeinfo));  
+    fprintf(log, "%s was deleted by %s syscall on %s", pathname, __func__, asctime(timeinfo));  
     return 0;
 }       
