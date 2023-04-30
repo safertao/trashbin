@@ -1,3 +1,2 @@
-unlink.so
-coursework.pdf
-
+./build/unlink.so
+./doc/coursework.pdf

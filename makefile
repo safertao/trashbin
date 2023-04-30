@@ -1,5 +1,5 @@
 CC = gcc
-CFLAGS = -fpic -shared -W -Werror -std=c11 -pedantic 
+CFLAGS = -fpic -shared -ggdb -W -Werror -std=c11 -pedantic 
 
 DIR = ./build
 SRC = ./src
