@@ -9,92 +9,85 @@
 #include <errno.h>
 #include <time.h>
 
-int unlink(const char *pathname) 
+
+int find_last_slash(const char *s);
+void logger(const char *home_path,const char *path_name, const char *function);
+
+int unlink(const char *path_name) 
 {
     char new_path[MAX_PATH_LEN];
-    char *home = getenv("HOME");
-    if(!home)
+    char *home_path = getenv("HOME");
+    if(!home_path)
     {
-        fprintf(stderr, "ERROR: can't get home environment\n");
+        fprintf(stderr, "ERROR: can't get home_path environment\n");
         exit(1);
     }
-    sprintf(new_path, "%s/trash", home);
+    sprintf(new_path, "%s/trash", home_path);
     mkdir(new_path, 0755);                       // если каталог корзины существует, ничего не делать 
-    int len = strlen(pathname);
-    int index = 0;
-    for(int i = len - 1; i > 0; i--)             // идем с конца строки до первого '/' для получения имени удаляемого файла
-    {
-        if(pathname[i] == '/') 
-        {
-            index = i + 1;
-            break;
-        }
-    }
+    int index = find_last_slash(path_name);       // находим позицию последнего '/'
     strcat(new_path, "/");
-    strcat(new_path, pathname+index);           // присоединяем имя файла    
-    time_t rawtime;
-    struct tm * timeinfo;
-    if(rename(pathname, new_path))
+    strcat(new_path, path_name + index);            // присоединяем имя файла    
+    if(rename(path_name, new_path))
     {
         perror("ERROR");
         exit(errno);  
     }         
-    time (&rawtime);
-    timeinfo = localtime(&rawtime);
-    char log_path[MAX_FILENAME_LEN];
-    sprintf(log_path, "%s/trash.log", home);
-    FILE *log = fopen(log_path, "a");  
-    if(!log)
-    {
-        fprintf(stderr, "ERROD: %s can't be opened/created\n");
-        exit(1);
-    }
-    fprintf(log, "%s was moved to %s/trash by %s syscall on %s", pathname, 	home, __func__, asctime(timeinfo)); 
-	printf("%s was succesfully moved %s/trash by %s syscall\n",	pathname, home, __func__);
+    logger(home_path, path_name, __func__);            // логирование сообщений в stdout и в файл trash.log в домашнем каталоге 
     return 0;
 }
 
-int unlinkat(int dirfd, const char *pathname, int flags) 
+int unlinkat(int dirfd, const char *path_name, int flags) 
 {
     char new_path[MAX_PATH_LEN];
-    char *home = getenv("HOME");
-    if(!home)
+    char *home_path = getenv("HOME");
+    if(!home_path)
     {
-        fprintf(stderr, "ERROR: can't get home environment\n");
+        fprintf(stderr, "ERROR: can't get home_path environment\n");
         exit(1);
     }
-        sprintf(new_path, "%s/trash", home);
+        sprintf(new_path, "%s/trash", home_path);
     mkdir(new_path, 0755);                       // если каталог корзины существует, ничего не делать 
-    int len = strlen(pathname);
-    int index = 0;
-    for(int i = len - 1; i > 0; i--)             // идем с конца строки до первого '/' для получения имени удаляемого файла
-    {
-        if(pathname[i] == '/') 
-        {
-            index = i + 1;
-            break;
-        }
-    }
+    int index = find_last_slash(path_name);       // находим позицию последнего '/'
     strcat(new_path, "/");
-    strcat(new_path, pathname+index);           // присоединяем имя файла 
-    time_t rawtime;
-    struct tm * timeinfo;
-    if(rename(pathname, new_path))
+    strcat(new_path, path_name + index);            // присоединяем имя файла 
+    if(rename(path_name, new_path))
     {
         perror("ERROR");
         exit(errno);  
     }         
+    logger(home_path, path_name, __func__);            // логирование сообщений в stdout и в файл trash.log в домашнем каталоге 
+    return 0;
+}       
+
+void logger(const char *home_path, const char *path_name, const char *function)
+{
+    time_t rawtime;
+    struct tm * timeinfo;
     time (&rawtime);
     timeinfo = localtime(&rawtime);
     char log_path[MAX_FILENAME_LEN];
-    sprintf(log_path, "%s/trash.log", home);
+    sprintf(log_path, "%s/trash.log", home_path);
     FILE *log = fopen(log_path, "a");  
     if(!log)
     {
         fprintf(stderr, "ERROD: %s can't be opened/created\n");
         exit(1);
     }
-    fprintf(log, "%s was moved to %s/trash by %s syscall on %s", pathname, 	home, __func__, asctime(timeinfo)); 
-	printf("%s was succesfully moved %s/trash by %s syscall\n",	pathname, home, __func__);
-    return 0;
-}       
+    fprintf(log, "%s was moved to %s/trash by %s syscall on %s", path_name, home_path, function, asctime(timeinfo)); 
+	printf("%s was succesfully moved %s/trash by %s syscall\n",	path_name, home_path, function);
+}
+
+int find_last_slash(const char *s)
+{
+    int index = 0;
+    int len = strlen(s);
+    for(int i = len - 1; i > 0; i--)             // идем с конца строки до первого '/' для получения имени удаляемого файла
+    {
+        if(s[i] == '/') 
+        {
+            index = i + 1;
+            break;
+        }
+    }
+    return index;
+}
