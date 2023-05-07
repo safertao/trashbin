@@ -13,8 +13,21 @@
 int find_last_slash(const char *s);
 void logger(const char *home_path,const char *path_name, const char *function);
 
+int my_unlink(const char *path_name, const char *func_name);
+
 int unlink(const char *path_name) 
 {
+    my_unlink(path_name, __func__);
+    return 0;
+}
+
+int unlinkat(int dirfd, const char *path_name, int flags) 
+{
+    my_unlink(path_name, __func__);
+    return 0;
+}      
+int my_unlink(const char *path_name, const char *func_name)
+{ 
     char new_path[MAX_PATH_LEN];
     char *home_path = getenv("HOME");
     if(!home_path)
@@ -32,32 +45,8 @@ int unlink(const char *path_name)
         perror("ERROR");
         exit(errno);  
     }         
-    logger(home_path, path_name, __func__);            // логирование сообщений в stdout и в файл trash.log в домашнем каталоге 
-    return 0;
+    logger(home_path, path_name, func_name);            // логирование сообщений в stdout и в файл trash.log в домашнем каталоге 
 }
-
-int unlinkat(int dirfd, const char *path_name, int flags) 
-{
-    char new_path[MAX_PATH_LEN];
-    char *home_path = getenv("HOME");
-    if(!home_path)
-    {
-        fprintf(stderr, "ERROR: can't get home_path environment\n");
-        exit(1);
-    }
-        sprintf(new_path, "%s/trash", home_path);
-    mkdir(new_path, 0755);                       // если каталог корзины существует, ничего не делать 
-    int index = find_last_slash(path_name);       // находим позицию последнего '/'
-    strcat(new_path, "/");
-    strcat(new_path, path_name + index);            // присоединяем имя файла 
-    if(rename(path_name, new_path))
-    {
-        perror("ERROR");
-        exit(errno);  
-    }         
-    logger(home_path, path_name, __func__);            // логирование сообщений в stdout и в файл trash.log в домашнем каталоге 
-    return 0;
-}       
 
 void logger(const char *home_path, const char *path_name, const char *function)
 {

@@ -14,4 +14,4 @@ $(prog): $(code)
 	$(CC) $(CFLAGS) $(code) -o $(prog)
 	
 clean:
-	rm -f $(prog)
+	rm -f $(prog) coursework.pdf
