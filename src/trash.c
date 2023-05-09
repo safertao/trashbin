@@ -123,7 +123,16 @@ void list_trash_files()
 
 void restore_file(const char *filename)
 {
-    FILE *f = fopen("/home/safertao/trash.log", "rt");
+    char trash_log_path[MAX_PATH_LEN];
+    char *home_path = getenv("HOME");
+    if(!home_path)
+    {
+        fprintf(stderr, "ERROR: can't get home_path environment\n");
+        exit(1);
+    }
+    strcpy(trash_log_path, home_path);
+    strcat(trash_log_path, "/trash.log");
+    FILE *f = fopen(trash_log_path, "rt");
     char file_path[MAX_PATH_LEN];
     char dest[MAX_PATH_LEN];
     while(!feof(f))
@@ -137,6 +146,7 @@ void restore_file(const char *filename)
         int dest_index = find_last_slash(dest);
         int filename_index = find_last_slash(filename);
         if(strcmp(dest + dest_index, filename + filename_index)) continue;
+        // delete renamed files from trash.log
         if(rename(filename, dest))
         {
             perror("rename");
