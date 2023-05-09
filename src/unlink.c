@@ -36,16 +36,17 @@ int my_unlink(const char *path_name, const char *func_name)
         exit(1);
     }
     sprintf(new_path, "%s/trash", home_path);
-    mkdir(new_path, 0755);                       // если каталог корзины существует, ничего не делать 
+    mkdir(new_path, 0755);                        // если каталог корзины существует, ничего не делать 
     int index = find_last_slash(path_name);       // находим позицию последнего '/'
     strcat(new_path, "/");
-    strcat(new_path, path_name + index);            // присоединяем имя файла    
+    strcat(new_path, path_name + index);          // присоединяем имя файла    
     if(rename(path_name, new_path))
     {
         perror("ERROR");
         exit(errno);  
     }         
-    logger(home_path, path_name, func_name);            // логирование сообщений в stdout и в файл trash.log в домашнем каталоге 
+    logger(home_path, path_name, func_name);      // логирование сообщений в stdout и в файл trash.log в домашнем каталоге 
+    return 0;
 }
 
 void logger(const char *home_path, const char *path_name, const char *function)
@@ -59,7 +60,7 @@ void logger(const char *home_path, const char *path_name, const char *function)
     FILE *log = fopen(log_path, "a");  
     if(!log)
     {
-        fprintf(stderr, "ERROD: %s can't be opened/created\n");
+        fprintf(stderr, "ERROD: %s can't be opened/created\n", log_path);
         exit(1);
     }
     fprintf(log, "%s was moved to %s/trash by %s syscall on %s", path_name, home_path, function, asctime(timeinfo)); 
