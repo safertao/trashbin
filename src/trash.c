@@ -43,16 +43,22 @@ int main()
                 list_trash_files();
                 break;
             }
+            case 'd':
+            {
+                
+            }
             case 'r':
             {
                 char file_path[MAX_PATH_LEN];
                 strcpy(file_path, trash_path);
+                char filename[MAX_FILENAME_LEN];
+                fflush(stdin);
+                fgets(filename, sizeof(filename)/sizeof(*filename), stdin);
+                fgets(filename, sizeof(filename)/sizeof(*filename), stdin);
+                filename[strlen(filename) - 1] = '\0';
                 strcat(file_path, "/");
-                //char *filename = input_file_path();
-                char filename[10] = "2";
                 strcat(file_path, filename);
                 restore_file(file_path);
-                //free(filename);
                 break;
             }
             case 'm':
@@ -64,10 +70,6 @@ int main()
             {
                 free(trash_path);
                 exit(0);
-                break;
-            }
-            default:
-            {
                 break;
             }
         }   
@@ -148,7 +150,7 @@ void restore_file(const char *filename)
             errno = 0;
             return;
         }
-        perror("fopen");    // 
+        perror("fopen");
         exit(errno);
     }
     char file_path[MAX_PATH_LEN];
@@ -204,9 +206,11 @@ void restore_file(const char *filename)
             line_end++;
             bytes++;
         }
-        if(!bytes) ftruncate(fd, s.st_size - (line_end - line_begin)/sizeof(char));
-        else ftruncate(fd, s.st_size - bytes);
-        //munmap(file_text, )
+        int new_file_size;
+        if(!bytes) new_file_size = s.st_size - ((line_end - line_begin)/sizeof(char));
+        else new_file_size = s.st_size - bytes;
+        ftruncate(fd, new_file_size);
+        munmap(file_text, new_file_size);
         close(fd);
         return;
     }
@@ -219,7 +223,7 @@ void input_option(char *option)
     while(true)                                            
     {
         scanf("%c", &tmp);
-        if(tmp == 'l' || tmp == 'r' || tmp == 'm' || tmp == 'q') break;
+        if(tmp == 'l' || tmp == 'r' || tmp == 'd' || tmp == 'm' || tmp == 'q') break;
     }
     *option = tmp;
     println();
@@ -228,7 +232,7 @@ void input_option(char *option)
 void print_menu()
 {
     printf("menu:\n");
-    printf("q - exit\nl - list trash files\n");
+    printf("q - exit\nl - list trash files\nd - delete file\n");
     printf("m - print menu\nr - restore file from trash\n");
     println();
 }
