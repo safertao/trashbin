@@ -10,6 +10,9 @@
 #include <time.h>
 #include <stdbool.h>
 #include <dirent.h>
+#include <unistd.h>
+#include <fcntl.h>
+#include <sys/mman.h>
 
 void println();
 void print_menu();
@@ -52,6 +55,11 @@ int main()
                 //free(filename);
                 break;
             }
+            case 'm':
+            {
+                print_menu();
+                break;
+            }
             case 'q':
             {
                 free(trash_path);
@@ -62,8 +70,7 @@ int main()
             {
                 break;
             }
-        }
-        
+        }   
     }
     return 0;
 }
@@ -94,7 +101,7 @@ void list_trash_files()
     {
         if (errno)
         {
-            fprintf(stderr, "trash : '%s' : Permission denied\n", trash_path);
+            fprintf(stderr, "trash : '%s' : permission denied\n", trash_path);
             errno = 0;
             return;
         }
@@ -132,12 +139,33 @@ void restore_file(const char *filename)
     }
     strcpy(trash_log_path, home_path);
     strcat(trash_log_path, "/trash.log");
-    FILE *f = fopen(trash_log_path, "rt");
+    FILE *f = fopen(trash_log_path, "r+t");
+    if(!f)
+    {
+        if(errno == 2)
+        {
+            fprintf(stderr, "trash.log doesn't exist");
+            errno = 0;
+            return;
+        }
+        perror("fopen");    // 
+        exit(errno);
+    }
     char file_path[MAX_PATH_LEN];
     char dest[MAX_PATH_LEN];
+    int lines_count = 0;
     while(!feof(f))
     {
-        if(!fgets(file_path, MAX_PATH_LEN, f)) return;
+        if(!fgets(file_path, MAX_PATH_LEN, f))
+        {
+            if(!lines_count) 
+            {
+                printf("trash.log is empty\n");
+                println();
+            }
+            fclose(f);
+            return; 
+        }
         char *path_end = strstr(file_path, " was moved to /home/");
         if(path_end)
         {
@@ -146,12 +174,40 @@ void restore_file(const char *filename)
         int dest_index = find_last_slash(dest);
         int filename_index = find_last_slash(filename);
         if(strcmp(dest + dest_index, filename + filename_index)) continue;
-        // delete renamed files from trash.log
         if(rename(filename, dest))
         {
             perror("rename");
             exit(errno);  
         }
+        char dest_path[MAX_PATH_LEN];
+        strncpy(dest_path, dest, dest_index);
+        printf("%s was successfully restored from trashbin to %s\n",filename, dest_path);
+        fclose(f);
+        int fd = open(trash_log_path, O_RDWR);
+        if(!fd)
+        {
+            perror("open");
+            exit(errno);
+        }
+        struct stat s;
+        fstat(fd, &s);
+        char *file_text = (char*) mmap(NULL, s.st_size, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+        char *line_begin = strstr(file_text, dest);
+        char *line_end = line_begin;
+        while(*line_end != '\n' && line_end) line_end++;
+        if(*line_end) line_end++;
+        int bytes = 0;
+        while (line_end < file_text + s.st_size)
+        {
+            *line_begin = *line_end;
+            line_begin++;
+            line_end++;
+            bytes++;
+        }
+        if(!bytes) ftruncate(fd, s.st_size - (line_end - line_begin)/sizeof(char));
+        else ftruncate(fd, s.st_size - bytes);
+        //munmap(file_text, )
+        close(fd);
         return;
     }
     printf("there is no such file %s in trashbin\n", filename);
