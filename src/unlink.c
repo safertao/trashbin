@@ -67,11 +67,12 @@ void logger(const char *home_path, const char *path_name, const char *function)
     FILE *log = fopen(log_path, "a");  
     if(!log)
     {
-        fprintf(stderr, "ERROD: %s can't be opened/created\n", log_path);
+        fprintf(stderr, "ERROR: %s can't be opened/created\n", log_path);
         exit(1);
     }
     fprintf(log, "%s was moved to %s/trash by %s syscall on %s", path_name, home_path, function, asctime(timeinfo));
 	printf("%s was succesfully moved to %s/trash by %s syscall\n",	path_name, home_path, function);
+    fclose(log);
 }
 
 int find_last_slash(const char *s)

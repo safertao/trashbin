@@ -23,8 +23,12 @@ void logger(const char *home_path, const char *path_name);
 char *input_file_path();
 void compute_trash_path();
 int find_last_slash(const char *s);
+int find_first_slash(const char *s);
 
-char *trash_path = NULL;
+char cwd[MAX_PATH_LEN];
+char trash_log_path[MAX_PATH_LEN];
+char trash_path[MAX_PATH_LEN + 10];
+char home_path[MAX_PATH_LEN];
 
 int main()
 {
@@ -40,25 +44,98 @@ int main()
         {
             case 'l':
             {
+                // TODO: fix bug with files that have equal names
+                // add clear trash && delete file permanently
+                // wrap everything into functions
                 list_trash_files();
                 break;
             }
             case 'd':
             {
+
+            }
+            case 'c':
+            {
                 
+            }
+            case 'p':
+            {
+                char old_path_name[MAX_PATH_LEN];
+                
+
+                char path_name[MAX_FILENAME_LEN];
+                printf("input name of file you want to delete:\n");
+                fflush(stdin);
+                fgets(path_name, sizeof(path_name)/sizeof(*path_name), stdin);
+                fgets(path_name, sizeof(path_name)/sizeof(*path_name), stdin);
+                path_name[strlen(path_name) - 1] = '\0';
+
+                char new_path[MAX_PATH_LEN];
+                int index;
+                if(*path_name != '/')
+                {
+                    strcpy(old_path_name, getcwd(cwd, sizeof(cwd)));
+                    strcat(old_path_name, "/");
+                    strcat(old_path_name, path_name + index);
+                    index = find_first_slash(path_name);
+                }
+                else 
+                {
+                    index = find_last_slash(path_name);
+                    strcpy(old_path_name, path_name);
+                }
+                strcpy(new_path, trash_path);
+                strcat(new_path, "/");
+                strcat(new_path, path_name + index);
+                if(rename(old_path_name, new_path))
+                {
+                    fprintf(stderr, "file with this name doesn't exist\n");
+                    fprintf(stderr, "------------------------------------------------\n");
+                    break;
+                }   
+                logger(home_path, old_path_name);
+                println();
+                break;
             }
             case 'r':
             {
-                char file_path[MAX_PATH_LEN];
-                strcpy(file_path, trash_path);
-                char filename[MAX_FILENAME_LEN];
+                char *home_path = getenv("HOME");
+                if(!home_path)
+                {
+                    fprintf(stderr, "ERROR: can't get home_path environment\n");
+                    exit(1);
+                }
+                strcpy(trash_log_path, home_path);
+                strcat(trash_log_path, "/trash.log");    
+
+                int fd = open(trash_log_path, O_RDWR);
+                if(!fd)
+                {
+                    perror("open");
+                    exit(errno);
+                }
+                struct stat s;
+                fstat(fd, &s);
+                close(fd);
+                if(!s.st_size) 
+                {
+                    fprintf(stderr, "trash.log is empty, delete files using unlink.so first\n");
+                    fprintf(stderr, "------------------------------------------------\n");
+                    break;
+                }
+            
+                char path_name[MAX_FILENAME_LEN];
+                printf("input name of file you want to restore:\n");
                 fflush(stdin);
-                fgets(filename, sizeof(filename)/sizeof(*filename), stdin);
-                fgets(filename, sizeof(filename)/sizeof(*filename), stdin);
-                filename[strlen(filename) - 1] = '\0';
-                strcat(file_path, "/");
-                strcat(file_path, filename);
-                restore_file(file_path);
+                fgets(path_name, sizeof(path_name)/sizeof(*path_name), stdin);
+                fgets(path_name, sizeof(path_name)/sizeof(*path_name), stdin);
+                path_name[strlen(path_name) - 1] = '\0';
+
+                char new_path[MAX_PATH_LEN];
+                strcpy(new_path, trash_path);
+                strcat(new_path, "/");
+                strcat(new_path, path_name);
+                restore_file(new_path);
                 break;
             }
             case 'm':
@@ -68,7 +145,6 @@ int main()
             }
             case 'q':
             {
-                free(trash_path);
                 exit(0);
                 break;
             }
@@ -84,9 +160,8 @@ void println()
 
 void compute_trash_path()
 {
-    trash_path = calloc(MAX_PATH_LEN, sizeof(*trash_path));
-    char *home_path = getenv("HOME");
-    if(!home_path)
+    strcpy(home_path, getenv("HOME"));
+    if(!(*home_path))
     {
         fprintf(stderr, "ERROR: can't get home_path environment\n");
         exit(1);
@@ -98,15 +173,11 @@ void list_trash_files()
 {
     DIR *dir = opendir(trash_path);
     struct dirent *read_dir;
-    struct stat st;
-    if (!dir)
+    if (!dir && errno)
     {
-        if (errno)
-        {
-            fprintf(stderr, "trash : '%s' : permission denied\n", trash_path);
-            errno = 0;
-            return;
-        }
+        fprintf(stderr, "trash : '%s' : permission denied\n", trash_path);
+        errno = 0;
+        return;
     }
     int files_count = 0;
     while((read_dir = readdir(dir)))
@@ -118,13 +189,12 @@ void list_trash_files()
             printf("trash files:\n");
         }
         char tmp[MAX_PATH_LEN];
-        strcpy(tmp, read_dir->d_name);
-        printf("%s\n", tmp);
+        printf("%s\n", read_dir->d_name);
         files_count++;
     }
     if(!files_count)
     {
-        fprintf(stderr, "trash: '%s' is empty\n", trash_path);
+        fprintf(stderr, "trash is empty\n");
     }
     println();
     closedir(dir);
@@ -132,42 +202,19 @@ void list_trash_files()
 
 void restore_file(const char *filename)
 {
-    char trash_log_path[MAX_PATH_LEN];
-    char *home_path = getenv("HOME");
-    if(!home_path)
-    {
-        fprintf(stderr, "ERROR: can't get home_path environment\n");
-        exit(1);
-    }
-    strcpy(trash_log_path, home_path);
-    strcat(trash_log_path, "/trash.log");
+    
     FILE *f = fopen(trash_log_path, "r+t");
     if(!f)
     {
-        if(errno == 2)
-        {
-            fprintf(stderr, "trash.log doesn't exist");
-            errno = 0;
-            return;
-        }
         perror("fopen");
         exit(errno);
     }
     char file_path[MAX_PATH_LEN];
     char dest[MAX_PATH_LEN];
-    int lines_count = 0;
+    fseek(f, 0, SEEK_SET);
     while(!feof(f))
     {
-        if(!fgets(file_path, MAX_PATH_LEN, f))
-        {
-            if(!lines_count) 
-            {
-                printf("trash.log is empty\n");
-                println();
-            }
-            fclose(f);
-            return; 
-        }
+        if(!fgets(file_path, MAX_PATH_LEN, f)) break;
         char *path_end = strstr(file_path, " was moved to /home/");
         if(path_end)
         {
@@ -184,6 +231,7 @@ void restore_file(const char *filename)
         char dest_path[MAX_PATH_LEN];
         strncpy(dest_path, dest, dest_index);
         printf("%s was successfully restored from trashbin to %s\n",filename, dest_path);
+        println();
         fclose(f);
         int fd = open(trash_log_path, O_RDWR);
         if(!fd)
@@ -199,6 +247,7 @@ void restore_file(const char *filename)
         while(*line_end != '\n' && line_end) line_end++;
         if(*line_end) line_end++;
         int bytes = 0;
+        int new_file_size = s.st_size - (line_end - line_begin);
         while (line_end < file_text + s.st_size)
         {
             *line_begin = *line_end;
@@ -206,15 +255,13 @@ void restore_file(const char *filename)
             line_end++;
             bytes++;
         }
-        int new_file_size;
-        if(!bytes) new_file_size = s.st_size - ((line_end - line_begin)/sizeof(char));
-        else new_file_size = s.st_size - bytes;
         ftruncate(fd, new_file_size);
-        munmap(file_text, new_file_size);
+        munmap(file_text, s.st_size);
         close(fd);
         return;
     }
-    printf("there is no such file %s in trashbin\n", filename);
+    printf("there is no such file in trashbin\n");
+    println();
 }
 
 void input_option(char *option)
@@ -223,7 +270,7 @@ void input_option(char *option)
     while(true)                                            
     {
         scanf("%c", &tmp);
-        if(tmp == 'l' || tmp == 'r' || tmp == 'd' || tmp == 'm' || tmp == 'q') break;
+        if(tmp == 'l' || tmp == 'r' || tmp == 'd' || tmp == 'm' || tmp == 'c' || tmp == 'p' || tmp == 'q') break;
     }
     *option = tmp;
     println();
@@ -232,7 +279,8 @@ void input_option(char *option)
 void print_menu()
 {
     printf("menu:\n");
-    printf("q - exit\nl - list trash files\nd - delete file\n");
+    printf("q - exit\nl - list trash files\np - put file into trash\n");
+    printf("c - clear trashbin\nd - delete file from trash permanently\n");
     printf("m - print menu\nr - restore file from trash\n");
     println();
 }
@@ -250,4 +298,39 @@ int find_last_slash(const char *s)
         }
     }
     return index;
+}
+
+int find_first_slash(const char *s)
+{
+    int index = 0;
+    int len = strlen(s);
+    for(int i = 0; i < len; i++)             // идем с конца строки до первого '/' для получения имени удаляемого файла
+    {
+        if(s[i] == '/') 
+        {
+            index = i + 1;
+            break;
+        }
+    }
+    return index;
+}
+
+void logger(const char *home_path, const char *path_name)
+{
+    time_t rawtime;
+    struct tm * timeinfo;
+    time (&rawtime);
+    timeinfo = localtime(&rawtime);
+    char log_path[MAX_FILENAME_LEN];
+    sprintf(log_path, "%s/trash.log", home_path);
+    FILE *log = fopen(log_path, "a");  
+    if(!log)
+    {
+        fprintf(stderr, "ERROR: %s can't be opened/created\n", log_path);
+        exit(1);
+    }
+    fseek(log, 0, SEEK_END);
+    fprintf(log, "%s was moved to %s/trash by user on %s", path_name, home_path, asctime(timeinfo));
+	printf("%s was succesfully moved to %s/trash by user\n", path_name, home_path);
+    fclose(log);
 }
