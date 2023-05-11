@@ -13,17 +13,18 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <sys/mman.h>
+#include <locale.h>
 
 void println();
 void print_menu();
 void input_option(char *option);
 void list_trash_files();
 void restore_file(const char *filename);
-void logger(const char *path_name);
+void logger(const char *path_name, const char *new_path);
 void input_file_path(char *new_path);
 void compute_paths();
-int find_last_slash(const char *s);
-int find_first_slash(const char *s);
+int find_last_slash(const char *s, int start_pos);
+int find_first_slash(const char *s, int start_pos);
 int check_trash_log();
 void delete_line_from_trashlog_file(const char *dest);
 void delete_file_permanently(const char *filename);
@@ -36,9 +37,6 @@ char cwd[MAX_PATH_LEN];
 char trash_log_path[MAX_PATH_LEN];
 char trash_path[MAX_PATH_LEN + 10];
 char home_path[MAX_PATH_LEN];
-
-// TODO: fix bug with files that have equal names
-// bug if filenames are equal, they will be logged, but first file will be replaced with the second one
 
 int main()
 {
@@ -77,14 +75,37 @@ int main()
                 char old_path_name[MAX_PATH_LEN];
                 char path_name[MAX_FILENAME_LEN];
                 char new_path[MAX_PATH_LEN];
+                char tmp_path[MAX_PATH_LEN + 20];
                 input_full_or_relative_file_path(old_path_name, path_name, new_path);
-                if(rename(old_path_name, new_path))
+                strcpy(tmp_path, new_path);
+                FILE* f = fopen(new_path, "r");
+                if(!f)
                 {
-                    fprintf(stderr, "file with this name doesn't exist\n");
-                    fprintf(stderr, "------------------------------------------------\n");
-                    break;
-                }   
-                logger(old_path_name);
+                    if(rename(old_path_name, new_path))
+                    {
+                        fprintf(stderr, "file with this name doesn't exist\n");
+                        fprintf(stderr, "------------------------------------------------\n");
+                        break;
+                    }   
+                }
+                else
+                {
+                    int value = 0;
+                    do
+                    {
+                        value++;
+                        memset(tmp_path, 0, MAX_FILENAME_LEN);
+                        sprintf(tmp_path, "%s(%d)", new_path, value);
+                    } while(fopen(tmp_path, "r"));
+                    if(rename(old_path_name, tmp_path))
+                    {
+                        fprintf(stderr, "file with this name doesn't exist\n");
+                        fprintf(stderr, "------------------------------------------------\n");
+                        break;
+                    }   
+                    fclose(f);
+                }
+                logger(old_path_name, tmp_path);
                 println();
                 break;
             }
@@ -96,6 +117,7 @@ int main()
                 printf("input name of file you want to restore:\n");
                 input_file_path(new_path);
                 restore_file(new_path);
+                println();
                 break;
             }
             case 'm':
@@ -127,21 +149,29 @@ void input_full_or_relative_file_path(char *old_path_name, char *path_name, char
         char tmp_path_name[MAX_PATH_LEN];
         strcpy(tmp_path_name, cwd);
         
-        index = find_last_slash(tmp_path_name);
+        index = find_last_slash(tmp_path_name, strlen(tmp_path_name));
         strncpy(old_path_name, tmp_path_name, index - 1);
         strcat(old_path_name, path_name + 2);       // skip ..
-        index = find_last_slash(path_name);
+        index = find_last_slash(path_name, strlen(path_name));
+    }
+    else if(*path_name == '.' && *(path_name + 1) == '/')
+    {
+        strcpy(old_path_name, cwd);
+        strcat(old_path_name, "/");
+        strcat(old_path_name, path_name + 2);
+        index = find_first_slash(path_name, 0);
+
     }
     else if(*path_name != '/')
     {
         strcpy(old_path_name, cwd);
         strcat(old_path_name, "/");
-        strcat(old_path_name, path_name + index);
-        index = find_first_slash(path_name);
+        strcat(old_path_name, path_name);
+        index = find_first_slash(path_name, 0);
     }
     else 
     {
-        index = find_last_slash(path_name);
+        index = find_last_slash(path_name, strlen(path_name));
         strcpy(old_path_name, path_name);
     }
     strcpy(new_path, trash_path);
@@ -203,22 +233,20 @@ void delete_file_permanently(const char *filename)
         memset(file_path, 0, MAX_PATH_LEN);
         memset(dest, 0, MAX_PATH_LEN);
         if(!fgets(file_path, MAX_PATH_LEN, f)) break;
-        char *path_end = strstr(file_path, " was moved to ");
+        char *path_end = strstr(file_path, " was renamed to ");
         if(path_end)
         {
             strncpy(dest, file_path, ((path_end - file_path)/sizeof(char)));
         }
-        int dest_index = find_last_slash(dest);
-        int filename_index = find_last_slash(filename);
-        if(strcmp(dest + dest_index, filename + filename_index)) continue;
+        int dest_after_index = find_last_slash(dest, strlen(dest));
+        int filename_index = find_last_slash(filename, strlen(filename));
+        if(strcmp(dest + dest_after_index, filename + filename_index)) continue;
         if(remove(filename))
         {
             perror("remove");
             exit(errno);  
         }
-        char dest_path[MAX_PATH_LEN];
-        strncpy(dest_path, dest, dest_index);
-        printf("%s was successfully deleted permanently from trashbin to %s\n",filename, dest_path);
+        printf("%s was deleted permanently from trashbin\n",filename);
         println();
         delete_line_from_trashlog_file(dest);
         fclose(f);
@@ -245,28 +273,61 @@ void restore_file(const char *filename)
         memset(file_path, 0, MAX_PATH_LEN);
         memset(dest, 0, MAX_PATH_LEN);
         if(!fgets(file_path, MAX_PATH_LEN, f)) break;
-        char *path_end = strstr(file_path, " was moved to ");
+        char *path_end = strstr(file_path, " was renamed to ");
         if(path_end)
         {
             strncpy(dest, file_path, ((path_end - file_path)/sizeof(char)));
         }
-        int dest_index = find_last_slash(dest);
-        int filename_index = find_last_slash(filename);
-        if(strcmp(dest + dest_index, filename + filename_index)) continue;
-        if(rename(filename, dest))
+        int dest_after_index = find_last_slash(dest, strlen(dest));
+        int filename_index = find_last_slash(filename, strlen(filename));
+        if(strcmp(dest + dest_after_index, filename + filename_index))
         {
-            perror("rename");
-            exit(errno);  
+            int last_index = find_last_slash(file_path, strlen(file_path));
+            int tmp = last_index;
+            int count = 0;
+            while(*(file_path + tmp) != ' ')
+            {
+                tmp++;
+                count++;
+            }
+            if(strncmp(filename + filename_index, file_path + last_index, count)) continue;
         }
-        printf("%s was successfully restored from trashbin\n",filename);
-        println();
-        delete_line_from_trashlog_file(dest);
         fclose(f);
+        FILE *end = fopen(dest, "r"); 
+        char tmp_path[MAX_PATH_LEN + 20];
+        if(!end)
+        {
+            if(rename(filename, dest))
+            {
+                perror("rename");
+                fprintf(stderr, "------------------------------------------------\n");
+                break;
+            }   
+            printf("%s was restored from trashbin and renamed to %s\n", filename, dest);
+        }
+        else
+        {
+            int value = 0;
+            do
+            {
+                value++;
+                memset(tmp_path, 0, MAX_FILENAME_LEN);
+                sprintf(tmp_path, "%s(%d)", dest, value);
+            } while(fopen(tmp_path, "r"));
+            if(rename(filename, tmp_path))
+            {
+                perror("rename");
+                fprintf(stderr, "------------------------------------------------\n");
+                break;
+            }   
+            printf("%s was restored from trashbin and renamed to %s because of collisions\n", filename, tmp_path);
+            fclose(end);
+        }
+        delete_line_from_trashlog_file(dest);
         return;
     }
     fclose(f);
     printf("there is no such file in trashbin\n");
-    println();
 }
 
 void delete_line_from_trashlog_file(const char *dest)
@@ -400,11 +461,10 @@ void print_menu()
     println();
 }
 
-int find_last_slash(const char *s)
+int find_last_slash(const char *s, int start_pos)
 {
     int index = 0;
-    int len = strlen(s);
-    for(int i = len - 1; i > 0; i--)             // идем с конца строки до первого '/' для получения имени удаляемого файла
+    for(int i = start_pos - 1; i > 0 && s[i]; i--)             // идем с конца строки до первого '/' для получения имени удаляемого файла
     {
         if(s[i] == '/') 
         {
@@ -415,11 +475,10 @@ int find_last_slash(const char *s)
     return index;
 }
 
-int find_first_slash(const char *s)
+int find_first_slash(const char *s, int start_pos)
 {
     int index = 0;
-    int len = strlen(s);
-    for(int i = 0; i < len; i++)             // идем с конца строки до первого '/' для получения имени удаляемого файла
+    for(int i = start_pos; s[i]; i++)                           // идем с начала строки до первого '/' для получения имени удаляемого файла
     {
         if(s[i] == '/') 
         {
@@ -430,7 +489,7 @@ int find_first_slash(const char *s)
     return index;
 }
 
-void logger(const char *path_name)
+void logger(const char *path_name, const char *new_path)
 {
     time_t rawtime;
     struct tm * timeinfo;
@@ -443,8 +502,8 @@ void logger(const char *path_name)
         exit(errno);
     }
     fseek(log, 0, SEEK_END);
-    fprintf(log, "%s was moved to %s/trash by user on %s", path_name, home_path, asctime(timeinfo));
-	printf("%s was succesfully moved to %s/trash by user\n", path_name, home_path);
+    fprintf(log, "%s was renamed to %s by user on %s", path_name, new_path, asctime(timeinfo));
+	printf("%s was renamed to %s by user\n", path_name, new_path);
     fclose(log);
 }
 
@@ -455,5 +514,3 @@ void init()
     compute_paths();
     mkdir(trash_path, 0755);
 }
-
-// tm FILE time_t stat DIR dirent
