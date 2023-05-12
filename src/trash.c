@@ -30,13 +30,14 @@ void delete_line_from_trashlog_file(const char *dest);
 void delete_file_permanently(const char *filename);
 void init();
 void clear_trash_log();
-void delete_all_files_from_trashbin();
+void clear_trashbin();
 void input_full_or_relative_file_path(char *old_path_name, char *path_name, char *new_path);
+void put_file_to_trash_with_checks(char *old_path_name, char *new_path);
 
-char cwd[MAX_PATH_LEN];
-char trash_log_path[MAX_PATH_LEN];
-char trash_path[MAX_PATH_LEN + 10];
-char home_path[MAX_PATH_LEN];
+char cwd[MAX_PATH_LEN] = {0};
+char trash_log_path[MAX_PATH_LEN] = {0};
+char trash_path[MAX_PATH_LEN + 10] = {0};
+char home_path[MAX_PATH_LEN] = {0};
 
 int main()
 {
@@ -65,47 +66,18 @@ int main()
             {
                 if(check_trash_log() == -1) break;
                 clear_trash_log();
-                delete_all_files_from_trashbin();
+                clear_trashbin();
                 printf("trashbin was succesfully cleared\n");
                 println();
                 break;
             }
             case 'p':
             {
-                char old_path_name[MAX_PATH_LEN];
-                char path_name[MAX_FILENAME_LEN];
-                char new_path[MAX_PATH_LEN];
-                char tmp_path[MAX_PATH_LEN + 20];
+                char old_path_name[MAX_PATH_LEN] = {0};
+                char path_name[MAX_FILENAME_LEN] = {0};
+                char new_path[MAX_PATH_LEN] = {0};
                 input_full_or_relative_file_path(old_path_name, path_name, new_path);
-                strcpy(tmp_path, new_path);
-                FILE* f = fopen(new_path, "r");
-                if(!f)
-                {
-                    if(rename(old_path_name, new_path))
-                    {
-                        fprintf(stderr, "file with this name doesn't exist\n");
-                        fprintf(stderr, "------------------------------------------------\n");
-                        break;
-                    }   
-                }
-                else
-                {
-                    int value = 0;
-                    do
-                    {
-                        value++;
-                        memset(tmp_path, 0, MAX_FILENAME_LEN);
-                        sprintf(tmp_path, "%s(%d)", new_path, value);
-                    } while(fopen(tmp_path, "r"));
-                    if(rename(old_path_name, tmp_path))
-                    {
-                        fprintf(stderr, "file with this name doesn't exist\n");
-                        fprintf(stderr, "------------------------------------------------\n");
-                        break;
-                    }   
-                    fclose(f);
-                }
-                logger(old_path_name, tmp_path);
+                put_file_to_trash_with_checks(old_path_name, new_path);
                 println();
                 break;
             }
@@ -135,6 +107,38 @@ int main()
     return 0;
 }
 
+void put_file_to_trash_with_checks(char *old_path_name, char *new_path)
+{
+    char tmp_path[MAX_PATH_LEN + 20];
+    strcpy(tmp_path, new_path);
+    FILE* f = fopen(new_path, "r");
+    if(!f)
+    {
+        if(rename(old_path_name, new_path))
+        {
+            fprintf(stderr, "file with this name doesn't exist\n");
+            return;
+        }   
+    }
+    else
+    {
+        int value = 0;
+        do
+        {
+            value++;
+            memset(tmp_path, 0, MAX_FILENAME_LEN);
+            sprintf(tmp_path, "%s(%d)", new_path, value);
+        } while(fopen(tmp_path, "r"));
+        if(rename(old_path_name, tmp_path))
+        {
+            fprintf(stderr, "file with this name doesn't exist\n");
+            return;
+        }   
+        fclose(f);
+    }
+    logger(old_path_name, tmp_path);
+}
+
 void input_full_or_relative_file_path(char *old_path_name, char *path_name, char *new_path)
 {
     printf("input name of file you want to put into trashbin:\n");
@@ -148,7 +152,6 @@ void input_full_or_relative_file_path(char *old_path_name, char *path_name, char
     {
         char tmp_path_name[MAX_PATH_LEN];
         strcpy(tmp_path_name, cwd);
-        
         index = find_last_slash(tmp_path_name, strlen(tmp_path_name));
         strncpy(old_path_name, tmp_path_name, index - 1);
         strcat(old_path_name, path_name + 2);       // skip ..
@@ -357,17 +360,16 @@ void delete_line_from_trashlog_file(const char *dest)
     close(fd);
 }
 
-void delete_all_files_from_trashbin()
+void clear_trashbin()
 {
-    DIR *dir = opendir(trash_path);
     struct dirent *read_dir;
+    DIR *dir = opendir(trash_path);
     if (!dir && errno)
     {
         perror("opendir");
         errno = 0;
         return;
     }
-    int files_count = 0;
     while((read_dir = readdir(dir)))
     {
         if (!(strcmp(read_dir->d_name, ".") && strcmp(read_dir->d_name, "..")))
