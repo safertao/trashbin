@@ -1,6 +1,6 @@
 #define _GNU_SOURCE
-#define MAX_PATH_LEN 4096
-#define MAX_FILENAME_LEN 256
+#define MAX_PATH_LEN 4096 // максимальная длина пути
+#define MAX_FILENAME_LEN 256 // максимальная длина имени файла
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -10,17 +10,24 @@
 #include <time.h>
 #include <unistd.h>
 
+// функции для поиска первого и последнего '/', начиная со start_pos
 int find_last_slash(const char *s, int start_pos);
 int find_first_slash(const char *s, int start_pos);
+// функция для записи данных в журнал
 void logger(const char *new_path,const char *path_name, const char *function);
+// функция, которая работает вместо системных вызовов unlink и unlinkat
 int my_unlink(const char *path_name, const char *func_name);
-void init();
-void compute_full_or_relative_path(char *old_path_name, const char *path_name, char *new_path);
-void put_file_to_trash_with_checks(char *old_path_name, char *new_path, const char *func_name);
+void init(); // функция инициализации данных
+// функция для вычисления полного или относительного пути
+void compute_full_or_relative_path(char *old_path_name, const char *path_name, 
+char *new_path);
+// функция для перемещения файла в корзину с проверками
+void put_file_to_trash_with_checks(char *old_path_name, char *new_path, const 
+char *func_name);
 
-char cwd[MAX_PATH_LEN] = {0};
-char home_path[MAX_PATH_LEN] = {0};
-char trash_path[MAX_PATH_LEN] = {0};
+char cwd[MAX_PATH_LEN] = {0}; // рабочий каталог
+char home_path[MAX_PATH_LEN] = {0}; // домашний каталог
+char trash_path[MAX_PATH_LEN] = {0}; // каталог корзины
 
 int unlink(const char *path_name) 
 {
@@ -44,7 +51,8 @@ int my_unlink(const char *path_name, const char *func_name)
     return 0;
 }
 
-void put_file_to_trash_with_checks(char *old_path_name, char *new_path, const char *func_name)
+void put_file_to_trash_with_checks(char *old_path_name, char *new_path, const 
+char *func_name)
 {
     char tmp_path[MAX_PATH_LEN + 20] = {0};
     strcpy(tmp_path, new_path);
@@ -54,13 +62,14 @@ void put_file_to_trash_with_checks(char *old_path_name, char *new_path, const ch
         if(rename(old_path_name, new_path))
         {
             fprintf(stderr, "file with this name doesn't exist\n");
-            fprintf(stderr, "------------------------------------------------\n");
+            println();
             return;
         }   
     }
     else
     {
         int value = 0;
+        // подбираем имена файлу, пока есть коллизии
         do
         {
             value++;
@@ -70,7 +79,7 @@ void put_file_to_trash_with_checks(char *old_path_name, char *new_path, const ch
         if(rename(old_path_name, tmp_path))
         {
             fprintf(stderr, "file with this name doesn't exist\n");
-            fprintf(stderr, "------------------------------------------------\n");
+            println();
             return;
         }   
         fclose(f);
@@ -78,17 +87,18 @@ void put_file_to_trash_with_checks(char *old_path_name, char *new_path, const ch
     logger(tmp_path, old_path_name, func_name);
 }
 
-void compute_full_or_relative_path(char *old_path_name, const char *path_name, char *new_path)
+void compute_full_or_relative_path(char *old_path_name, const char *path_name, 
+char *new_path)
 {
     int index = 0;
     if(*path_name == '.' && *(path_name + 1) == '.')
     {
-        char tmp_path_name[MAX_PATH_LEN];
+        char tmp_path_name[MAX_PATH_LEN] = {0};
+        // берем рабочий каталог, копируем имя предыдущего каталога
         strcpy(tmp_path_name, cwd);
-        
         index = find_last_slash(tmp_path_name, strlen(tmp_path_name));
         strncpy(old_path_name, tmp_path_name, index - 1);
-        strcat(old_path_name, path_name + 2);       // skip ..
+        strcat(old_path_name, path_name + 2); // пропускаем .. получаем имя
         index = find_last_slash(path_name, strlen(path_name));
     }
     else if(*path_name == '.' && *(path_name + 1) == '/')
@@ -108,6 +118,7 @@ void compute_full_or_relative_path(char *old_path_name, const char *path_name, c
     }
     else 
     {
+        // полный путь от корня
         index = find_last_slash(path_name, strlen(path_name));
         strcpy(old_path_name, path_name);
     }
@@ -121,7 +132,7 @@ void logger(const char *new_path, const char *path_name, const char *function)
     time_t rawtime;
     struct tm * timeinfo;
     time (&rawtime);
-    timeinfo = localtime(&rawtime);
+    timeinfo = localtime(&rawtime); // переводим в локальное время
     char log_path[MAX_PATH_LEN + 20];
     sprintf(log_path, "%s/trash.log", home_path);
     FILE *log = fopen(log_path, "a");  
@@ -130,8 +141,10 @@ void logger(const char *new_path, const char *path_name, const char *function)
         perror("fopen");
         exit(errno);
     }
-    fprintf(log, "%s was renamed to %s by %s syscall on %s", path_name, new_path, function, asctime(timeinfo));
-	printf("%s was renamed to %s by %s syscall\n",	path_name, new_path, function);
+    fprintf(log, "%s was renamed to %s by %s syscall on %s", 
+    path_name, new_path, function, asctime(timeinfo));
+	printf("%s was renamed to %s by %s syscall\n", 
+    path_name, new_path, function);
     fclose(log);
 }
 
@@ -143,7 +156,7 @@ void init()
         fprintf(stderr, "ERROR: can't get home_path environment\n");
         exit(1);
     }
-    strcpy(trash_path, home_path);
+    strcpy(trash_path, home_path); // получаем пути
     strcat(trash_path, "/trash");
     getcwd(cwd, sizeof(cwd));  
     mkdir(trash_path, 0755);
@@ -152,7 +165,7 @@ void init()
 int find_last_slash(const char *s, int start_pos)
 {
     int index = 0;
-    for(int i = start_pos - 1; i > 0 && s[i]; i--)             // идем с конца строки до первого '/' для получения имени удаляемого файла
+    for(int i = start_pos - 1; i > 0 && s[i]; i--)            
     {
         if(s[i] == '/') 
         {
@@ -166,7 +179,7 @@ int find_last_slash(const char *s, int start_pos)
 int find_first_slash(const char *s, int start_pos)
 {
     int index = 0;
-    for(int i = start_pos; s[i]; i++)                           // идем с начала строки до первого '/' для получения имени удаляемого файла
+    for(int i = start_pos; s[i]; i++)
     {
         if(s[i] == '/') 
         {

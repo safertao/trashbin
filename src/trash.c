@@ -1,6 +1,6 @@
 #define _GNU_SOURCE
-#define MAX_PATH_LEN 4096
-#define MAX_FILENAME_LEN 256
+#define MAX_PATH_LEN 4096 // максимальная длина пути
+#define MAX_FILENAME_LEN 256 // максимальная длина имени файла
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -15,29 +15,37 @@
 #include <sys/mman.h>
 #include <locale.h>
 
-void println();
-void print_menu();
-void input_option(char *option);
-void list_trash_files();
+void println(); // функция вывод линии из '-'
+void print_menu(); // функция вывода меню на экран
+void input_option(char *option); // функция ввода опции с проверками
+void list_trash_files(); // функция вывод всех файлов, находящихся в корзине
+// функция восстановления файла из корзины
 void restore_file(const char *filename);
-void logger(const char *path_name, const char *new_path);
-void input_file_path(char *new_path);
-void compute_paths();
-int find_last_slash(const char *s, int start_pos);
-int find_first_slash(const char *s, int start_pos);
-int check_trash_log();
-void delete_line_from_trashlog_file(const char *dest);
-void delete_file_permanently(const char *filename);
-void init();
-void clear_trash_log();
-void clear_trashbin();
-void input_full_or_relative_file_path(char *old_path_name, char *path_name, char *new_path);
-void put_file_to_trash_with_checks(char *old_path_name, char *new_path);
+// функция для записи данных в журнал
+void logger(const char *path_name, const char *new_path); 
+void input_file_path(char *new_path); // функция для ввода имени файла
+void compute_paths(); // функция для вычисления путей
+// функции для нахождения первого и последнего '/', начиная с start_pos
+int find_last_slash(const char *s, int start_pos); 
+int find_first_slash(const char *s, int start_pos); 
+int check_trash_log(); // функция для проверки заполненности корзины
+// функция для удаления строки из файла журнала
+void delete_line_from_trashlog_file(const char *dest); 
+// функция для перманентного удаленного файла
+void delete_file_permanently(const char *filename);   
+void init();  // функция для инициализации данных
+void clear_trash_log(); // функция для очистки файла журнала
+void clear_trashbin(); // функция для очистки корзины
+// функция для ввода полного или относительного пути
+void input_full_or_relative_file_path(char *old_path_name, char *path_name, 
+char *new_path);  
+// функция для перемещения файла в корзину с проверками
+void put_file_to_trash_with_checks(char *old_path_name, char *new_path); 
 
-char cwd[MAX_PATH_LEN] = {0};
-char trash_log_path[MAX_PATH_LEN] = {0};
-char trash_path[MAX_PATH_LEN + 10] = {0};
-char home_path[MAX_PATH_LEN] = {0};
+char cwd[MAX_PATH_LEN] = {0}; // рабочий каталог
+char trash_log_path[MAX_PATH_LEN] = {0}; // путь до файла-журнала
+char trash_path[MAX_PATH_LEN + 10] = {0}; // путь до корзины
+char home_path[MAX_PATH_LEN] = {0}; // домашний каталог
 
 int main()
 {
@@ -76,7 +84,8 @@ int main()
                 char old_path_name[MAX_PATH_LEN] = {0};
                 char path_name[MAX_FILENAME_LEN] = {0};
                 char new_path[MAX_PATH_LEN] = {0};
-                input_full_or_relative_file_path(old_path_name, path_name, new_path);
+                input_full_or_relative_file_path(old_path_name, path_name, 
+                new_path);
                 put_file_to_trash_with_checks(old_path_name, new_path);
                 println();
                 break;
@@ -123,6 +132,7 @@ void put_file_to_trash_with_checks(char *old_path_name, char *new_path)
     else
     {
         int value = 0;
+        // подбираем имена файлу, пока есть коллизии
         do
         {
             value++;
@@ -139,7 +149,8 @@ void put_file_to_trash_with_checks(char *old_path_name, char *new_path)
     logger(old_path_name, tmp_path);
 }
 
-void input_full_or_relative_file_path(char *old_path_name, char *path_name, char *new_path)
+void input_full_or_relative_file_path(char *old_path_name, char *path_name, 
+char *new_path)
 {
     printf("input name of file you want to put into trashbin:\n");
     fflush(stdin);
@@ -151,17 +162,18 @@ void input_full_or_relative_file_path(char *old_path_name, char *path_name, char
     if(*path_name == '.' && *(path_name + 1) == '.')
     {
         char tmp_path_name[MAX_PATH_LEN];
+        // берем рабочий каталог, копируем имя предыдущего каталога
         strcpy(tmp_path_name, cwd);
         index = find_last_slash(tmp_path_name, strlen(tmp_path_name));
         strncpy(old_path_name, tmp_path_name, index - 1);
-        strcat(old_path_name, path_name + 2);       // skip ..
+        strcat(old_path_name, path_name + 2); // пропускаем .. и получаем имя  
         index = find_last_slash(path_name, strlen(path_name));
     }
     else if(*path_name == '.' && *(path_name + 1) == '/')
     {
         strcpy(old_path_name, cwd);
         strcat(old_path_name, "/");
-        strcat(old_path_name, path_name + 2);
+        strcat(old_path_name, path_name + 2); // пропускаем ./
         index = find_first_slash(path_name, 0);
 
     }
@@ -174,6 +186,7 @@ void input_full_or_relative_file_path(char *old_path_name, char *path_name, char
     }
     else 
     {
+        // полный путь от корня
         index = find_last_slash(path_name, strlen(path_name));
         strcpy(old_path_name, path_name);
     }
@@ -209,7 +222,7 @@ int check_trash_log()
     if(!s.st_size) 
     {
         fprintf(stderr, "trash is empty, put files to it first\n");
-        fprintf(stderr, "------------------------------------------------\n");
+        println();
         return -1;
     }
     return 0;
@@ -236,6 +249,7 @@ void delete_file_permanently(const char *filename)
         memset(file_path, 0, MAX_PATH_LEN);
         memset(dest, 0, MAX_PATH_LEN);
         if(!fgets(file_path, MAX_PATH_LEN, f)) break;
+        // становимся в нужную позицию, рассчитываем индексы для имен файлов
         char *path_end = strstr(file_path, " was renamed to ");
         if(path_end)
         {
@@ -243,7 +257,9 @@ void delete_file_permanently(const char *filename)
         }
         int dest_after_index = find_last_slash(dest, strlen(dest));
         int filename_index = find_last_slash(filename, strlen(filename));
-        if(strcmp(dest + dest_after_index, filename + filename_index)) continue;
+        if(strcmp(dest + dest_after_index, filename + filename_index)) 
+            continue;
+        // удаляем найденный файл
         if(remove(filename))
         {
             perror("remove");
@@ -277,23 +293,27 @@ void restore_file(const char *filename)
         memset(dest, 0, MAX_PATH_LEN);
         if(!fgets(file_path, MAX_PATH_LEN, f)) break;
         char *path_end = strstr(file_path, " was renamed to ");
+        // становимся в правильную позицию, рассчитываем индексы для сравнения
+        // имен файлов
         if(path_end)
         {
             strncpy(dest, file_path, ((path_end - file_path)/sizeof(char)));
         }
         int dest_after_index = find_last_slash(dest, strlen(dest));
         int filename_index = find_last_slash(filename, strlen(filename));
+        // сравниваем прошлое имя и текущее имя с введенным
         if(strcmp(dest + dest_after_index, filename + filename_index))
         {
-            int last_index = find_last_slash(file_path, strlen(file_path));
-            int tmp = last_index;
+            int last_idx = find_last_slash(file_path, strlen(file_path));
+            int tmp = last_idx;
             int count = 0;
             while(*(file_path + tmp) != ' ')
             {
                 tmp++;
                 count++;
             }
-            if(strncmp(filename + filename_index, file_path + last_index, count)) continue;
+            if(strncmp(filename + filename_index, file_path + last_idx, count))
+                continue;
         }
         fclose(f);
         FILE *end = fopen(dest, "r"); 
@@ -303,14 +323,16 @@ void restore_file(const char *filename)
             if(rename(filename, dest))
             {
                 perror("rename");
-                fprintf(stderr, "------------------------------------------------\n");
+                println();
                 break;
             }   
-            printf("%s was restored from trashbin and renamed to %s\n", filename, dest);
+            printf("%s was restored from trashbin and renamed to %s\n", 
+            filename, dest);
         }
         else
         {
             int value = 0;
+            // цикл подбора имен для избегания коллизий
             do
             {
                 value++;
@@ -320,10 +342,11 @@ void restore_file(const char *filename)
             if(rename(filename, tmp_path))
             {
                 perror("rename");
-                fprintf(stderr, "------------------------------------------------\n");
+                println();
                 break;
             }   
-            printf("%s was restored from trashbin and renamed to %s because of collisions\n", filename, tmp_path);
+            printf("%s was restored from trashbin and renamed to %s because of" 
+            "collisions\n", filename, tmp_path);
             fclose(end);
         }
         delete_line_from_trashlog_file(dest);
@@ -342,13 +365,17 @@ void delete_line_from_trashlog_file(const char *dest)
         exit(errno);
     }
     struct stat s;
-    fstat(fd, &s);
-    char *file_text = (char*) mmap(NULL, s.st_size, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+    fstat(fd, &s); // для размера файла
+    // отображаем файл в file_text, находим вхождение искомой строки
+    char *file_text = (char*) mmap(NULL, s.st_size, PROT_READ | PROT_WRITE, 
+    MAP_SHARED, fd, 0);
     char *line_begin = strstr(file_text, dest);
     char *line_end = line_begin;
-    while(*line_end != '\n' && line_end) line_end++;
+    while(*line_end != '\n' && line_end) line_end++; 
     if(*line_end) line_end++;
     int new_file_size = s.st_size - (line_end - line_begin);
+    // нашли '\n' или конец файла, новую длину файла
+    // сдвигаем всю информацию влево
     while (line_end < file_text + s.st_size)
     {
         *line_begin = *line_end;
@@ -370,7 +397,8 @@ void clear_trashbin()
         errno = 0;
         return;
     }
-    while((read_dir = readdir(dir)))
+    while((read_dir = readdir(dir)))// читаем все файлы изtrash_path,
+    // кроме . и .. и удаляем их 
     {
         if (!(strcmp(read_dir->d_name, ".") && strcmp(read_dir->d_name, "..")))
             continue;
@@ -405,7 +433,7 @@ void compute_paths()
         fprintf(stderr, "ERROR: can't get home_path environment\n");
         exit(1);
     }
-    sprintf(trash_path, "%s/trash", home_path);
+    sprintf(trash_path, "%s/trash", home_path);// вычисляем все пути
     strcpy(trash_log_path, home_path);
     strcat(trash_log_path, "/trash.log");  
     getcwd(cwd, sizeof(cwd));  
@@ -422,7 +450,7 @@ void list_trash_files()
         return;
     }
     int files_count = 0;
-    while((read_dir = readdir(dir)))
+    while((read_dir = readdir(dir)))// читаем все файлы из trash_path, выводим
     {
         if (!(strcmp(read_dir->d_name, ".") && strcmp(read_dir->d_name, "..")))
             continue;
@@ -448,7 +476,8 @@ void input_option(char *option)
     while(true)                                            
     {
         scanf("%c", &tmp);
-        if(tmp == 'l' || tmp == 'r' || tmp == 'd' || tmp == 'm' || tmp == 'c' || tmp == 'p' || tmp == 'q') break;
+        if(tmp == 'l' || tmp == 'r' || tmp == 'd' || tmp == 'm' 
+        || tmp == 'c' || tmp == 'p' || tmp == 'q') break;
     }
     *option = tmp;
     println();
@@ -466,7 +495,7 @@ void print_menu()
 int find_last_slash(const char *s, int start_pos)
 {
     int index = 0;
-    for(int i = start_pos - 1; i > 0 && s[i]; i--)             // идем с конца строки до первого '/' для получения имени удаляемого файла
+    for(int i = start_pos - 1; i > 0 && s[i]; i--)
     {
         if(s[i] == '/') 
         {
@@ -480,7 +509,7 @@ int find_last_slash(const char *s, int start_pos)
 int find_first_slash(const char *s, int start_pos)
 {
     int index = 0;
-    for(int i = start_pos; s[i]; i++)                           // идем с начала строки до первого '/' для получения имени удаляемого файла
+    for(int i = start_pos; s[i]; i++) 
     {
         if(s[i] == '/') 
         {
@@ -496,15 +525,16 @@ void logger(const char *path_name, const char *new_path)
     time_t rawtime;
     struct tm * timeinfo;
     time (&rawtime);
-    timeinfo = localtime(&rawtime);
+    timeinfo = localtime(&rawtime); // переводим в локальное время
     FILE *log = fopen(trash_log_path, "a");  
     if(!log)
     {
         perror("fopen");
         exit(errno);
     }
-    fseek(log, 0, SEEK_END);
-    fprintf(log, "%s was renamed to %s by user on %s", path_name, new_path, asctime(timeinfo));
+    fseek(log, 0, SEEK_END);         
+    fprintf(log, "%s was renamed to %s by user on %s", path_name, new_path, 
+    asctime(timeinfo));
 	printf("%s was renamed to %s by user\n", path_name, new_path);
     fclose(log);
 }
