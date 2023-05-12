@@ -24,6 +24,7 @@ char *new_path);
 // функция для перемещения файла в корзину с проверками
 void put_file_to_trash_with_checks(char *old_path_name, char *new_path, const 
 char *func_name);
+void println(); // функция для вывод строки из '-'
 
 char cwd[MAX_PATH_LEN] = {0}; // рабочий каталог
 char home_path[MAX_PATH_LEN] = {0}; // домашний каталог
@@ -146,6 +147,11 @@ void logger(const char *new_path, const char *path_name, const char *function)
 	printf("%s was renamed to %s by %s syscall\n", 
     path_name, new_path, function);
     fclose(log);
+}
+
+void println()
+{
+    printf("------------------------------------------------\n");
 }
 
 void init()

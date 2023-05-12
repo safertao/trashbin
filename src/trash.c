@@ -487,8 +487,8 @@ void print_menu()
 {
     printf("menu:\n");
     printf("q - exit\nl - list trash files\np - put file into trash\n");
-    printf("c - clear trashbin\nd - delete file from trash permanently\n");
-    printf("m - print menu\nr - restore file from trash\n");
+    printf("r - restore file from trash\nd - delete file from trash ");
+    printf("permanently\nc - clear trashbin\nm - print menu\n");
     println();
 }
 
