@@ -13,7 +13,6 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <sys/mman.h>
-#include <locale.h>
 
 void println(); // функция вывод линии из '-'
 void print_menu(); // функция вывода меню на экран
@@ -346,7 +345,7 @@ void restore_file(const char *filename)
                 break;
             }   
             printf("%s was restored from trashbin and renamed to %s because of" 
-            "collisions\n", filename, tmp_path);
+            " collisions\n", filename, tmp_path);
             fclose(end);
         }
         delete_line_from_trashlog_file(dest);
