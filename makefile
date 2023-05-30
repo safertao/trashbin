@@ -1,5 +1,5 @@
 CC = gcc
-CFLAGS = -ggdb -W -Werror -std=c11 -pedantic -Wall -Wextra -Wno-unused-parameter -Wno-unused-variable
+CFLAGS = -W -Werror -std=c11 -pedantic -Wall -Wextra -Wno-unused-parameter -Wno-unused-variable
 UNLINK_FLAGS = -fpic -shared
 
 BUILD = ./build
